@@ -1,6 +1,9 @@
 //
 // Created by Siqing Zhang on 26/11/2023.
 //
+#ifndef STREETMATCH_MAPNODE_HPP
+#define STREETMATCH_MAPNODE_HPP
+
 #include <iostream>
 #include <string>
 #include <regex>
@@ -12,9 +15,8 @@
 #include <limits>
 #include <memory>
 #include <cmath>
-
-#ifndef STREETMATCH_MAPNODE_HPP
-#define STREETMATCH_MAPNODE_HPP
+#include <compare>
+#include <algorithm>
 
 namespace StreetMatch {
     class MapNode {
@@ -23,7 +25,7 @@ namespace StreetMatch {
         long id;
         double latitude;
         double longitude;
-        int trip_id;
+        int street_count;
 
     public:
         // Delete default constructor
@@ -44,14 +46,16 @@ namespace StreetMatch {
 
         // Parameterized constructor
         explicit MapNode(long id, double lat, double lon, int trip_id)
-                : id(id), latitude(lat), longitude(lon), trip_id(trip_id) {}
+                : id(id), latitude(lat), longitude(lon), street_count(trip_id) {}
 
         // Getters
         [[nodiscard]] long getId() const { return this->id; }
         [[nodiscard]] double getLon() const { return this->longitude; }
         [[nodiscard]] double getLat() const { return this->latitude; }
-        [[nodiscard]] int getTripId() const { return this->trip_id; }
+        [[nodiscard]] int getStreetCount() const { return this->street_count; }
+
         [[nodiscard]] double distanceSquared(const MapNode& other) const {
+            // L2 euclidean distance
             double lat_diff = latitude - other.latitude;
             double lon_diff = longitude - other.longitude;
             return lat_diff * lat_diff + lon_diff * lon_diff;
@@ -62,10 +66,12 @@ namespace StreetMatch {
             os << "<node id=\"" << node.id << "\">\n"
                << "  <data key=\"d4\">" << node.latitude << "</data>\n"
                << "  <data key=\"d5\">" << node.longitude << "</data>\n"
-               << "  <data key=\"d6\">" << node.trip_id << "</data>\n"
+               << "  <data key=\"d6\">" << node.street_count << "</data>\n"
                << "</node>\n";
             return os;
         }
+
+        auto operator<=>(const MapNode&) const = default;
     };
 
 
@@ -95,7 +101,7 @@ namespace StreetMatch {
             if (nearest.has_value()) {
                 return nearest.value();
             } else {
-                throw std::runtime_error("No nearest neighbor found"); // or handle this case as appropriate
+                throw std::runtime_error("No nearest neighbor found");
             }
         }
 
@@ -120,17 +126,22 @@ namespace StreetMatch {
             if (!node) return;
 
             double dist = node->point.distanceSquared(queryPoint);
+//            std::cout << "dist: " << dist << std::endl;
+//            std::cout << "nearestDist: " << nearestDist << std::endl;
             if (dist < nearestDist) {
                 nearestDist = dist;
                 nearest = node->point;
+//                std::cout << "nearest: " << nearest.value().getId() << std::endl;
             }
 
-            unsigned axis = depth % 2;
+            unsigned axis = depth % 2; // 0 for latitude, 1 for longitude
             std::unique_ptr<KDTreeNode>& first = (axis == 0 && queryPoint.getLat() < node->point.getLat()) || (axis == 1 && queryPoint.getLon() < node->point.getLon()) ? node->left : node->right;
             std::unique_ptr<KDTreeNode>& second = first == node->left ? node->right : node->left;
 
+            // Search down the tree
             findNearestNeighbor(first, queryPoint, depth + 1, nearest, nearestDist);
 
+            // Check if we need to search the other branch
             double axisDist = axis == 0 ? queryPoint.getLat() - node->point.getLat() : queryPoint.getLon() - node->point.getLon();
             if (axisDist * axisDist < nearestDist) {
                 findNearestNeighbor(second, queryPoint, depth + 1, nearest, nearestDist);

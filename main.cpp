@@ -14,6 +14,8 @@
 
 
 static constexpr std::string_view mapPath = "../Data/maps/NL2.osm";
+static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
+static constexpr std::string_view outputPath = "../Data/maps/output_file.txt";
 
 void fileRead(){
     const auto startTime = std::chrono::high_resolution_clock::now();
@@ -63,39 +65,39 @@ void fileRead(){
     const auto endTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = endTime - startTime; // time diff
 
-    std::cout << "Runing time: " << elapsed.count()/1000 << " seconds." << std::endl;
+    std::cout << "Running time: " << elapsed.count()/1000 << " seconds." << std::endl;
 }
 
-void boostParsing() {
-    boost::property_tree::ptree pt;
-    try {
-        // loading XML
-        boost::property_tree::read_xml(std::string(mapPath), pt);
-
-        // check if root is graph node
-        if (pt.get_child_optional("graph")) {
-            // traverse all nodes
-            for (const auto& node : pt.get_child("graph")) {
-                if (node.first == "node") { // check if node
-                    auto id = node.second.get<std::string>("<xmlattr>.id");
-                    auto latitude = node.second.get<std::string>("data[key='d4']");
-                    auto longitude = node.second.get<std::string>("data[key='d5']");
-                    auto tripId = node.second.get<std::string>("data[key='d6']");
-
-                    std::cout << "id = " << id << std::endl;
-                    std::cout << "latitude = " << latitude << std::endl;
-                    std::cout << "longitude = " << longitude << std::endl;
-                    std::cout << "trip_id = " << tripId << std::endl << std::endl;
-                }
-            }
-        } else {
-            std::cerr << "Invalid XML structure: root element is not 'graph'." << std::endl;
-        }
-    } catch (const boost::property_tree::xml_parser::xml_parser_error& e) {
-        std::cerr << "XML Parsing Error: " << e.what() << std::endl;
-    }
-
-}
+//void boostParsing() {
+//    boost::property_tree::ptree pt;
+//    try {
+//        // loading XML
+//        boost::property_tree::read_xml(std::string(mapPath), pt);
+//
+//        // check if root is graph node
+//        if (pt.get_child_optional("graph")) {
+//            // traverse all nodes
+//            for (const auto& node : pt.get_child("graph")) {
+//                if (node.first == "node") { // check if node
+//                    auto id = node.second.get<std::string>("<xmlattr>.id");
+//                    auto latitude = node.second.get<std::string>("data[key='d4']");
+//                    auto longitude = node.second.get<std::string>("data[key='d5']");
+//                    auto tripId = node.second.get<std::string>("data[key='d6']");
+//
+//                    std::cout << "id = " << id << std::endl;
+//                    std::cout << "latitude = " << latitude << std::endl;
+//                    std::cout << "longitude = " << longitude << std::endl;
+//                    std::cout << "trip_id = " << tripId << std::endl << std::endl;
+//                }
+//            }
+//        } else {
+//            std::cerr << "Invalid XML structure: root element is not 'graph'." << std::endl;
+//        }
+//    } catch (const boost::property_tree::xml_parser::xml_parser_error& e) {
+//        std::cerr << "XML Parsing Error: " << e.what() << std::endl;
+//    }
+//
+//}
 
 //void parsingMap() {
 //    osmium::io::File mapFile(mapPath.data());
@@ -107,12 +109,84 @@ void boostParsing() {
 //    mapReader.close();
 //}
 
+std::vector<std::string> split(const std::string& s, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
 
+void matchQuery() {
+    const auto startTime = std::chrono::high_resolution_clock::now();
+    // Load map data from a file
+    std::vector<StreetMatch::MapNode> mapData;
+    std::ifstream file(outputPath.data());
+    std::string line;
+
+    while (std::getline(file, line)) {
+        auto tokens = split(line, ','); // Space as delimiter
+        if (tokens.size() >= 4) {
+            try {
+                long id = std::stol(tokens[0]);
+                double lat = std::stod(tokens[1]);
+                double lon = std::stod(tokens[2]);
+                int street_count = std::stoi(tokens[3]);
+                mapData.emplace_back(id, lat, lon, street_count);
+            } catch (const std::invalid_argument& e) {
+                std::cout << tokens[0] << std::endl;
+                std::cerr << "Error parsing map data: " << e.what() << std::endl;
+            }
+        }
+    }
+
+    // Construct KD-Tree with map data
+    StreetMatch::KDTree tree;
+    for (const auto& node : mapData) {
+        tree.insert(node);
+    }
+    file.close();
+
+    // Load query data from a file
+    std::vector<StreetMatch::MapNode> queryData;
+    std::ifstream qfile(queryPath.data());
+    line.clear();
+    std::size_t queryCount = 0;
+    while (std::getline(qfile, line)) {
+        auto tokens = split(line, ';'); // Semicolon as delimiter
+        if (tokens.size() >= 3) {
+            double lat = std::stod(tokens[0]);
+            double lon = std::stod(tokens[1]);
+            int sCount = std::stoi(tokens[2]);
+            queryData.emplace_back(0, lat, lon, sCount);
+            queryCount++;
+        }
+    }
+
+    std::ofstream resultFile("../Data/result/result.txt");
+    // For each query point, find the nearest neighbor in the map data
+    for (const auto& queryPoint : queryData) {
+        try {
+            StreetMatch::MapNode nearest = tree.nearestNeighbor(queryPoint);
+            resultFile << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount() << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon() << ',' << nearest.getStreetCount() << std::endl;
+//            std::cout << "Nearest to (" << queryPoint.getLat() << ", " << queryPoint.getLon() << ") is Node ID " << nearest.getId() << std::endl;
+        } catch (const std::runtime_error& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+    qfile.close();
+    const auto endTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = endTime - startTime; // time diff
+
+    std::cout << "Running time: " << elapsed.count()/1000 << " seconds." << std::endl;
+}
 
 int main() {
     try {
 //        fileRead();
-
+        matchQuery();
     } catch (const std::exception& e) {
         std::cerr << "Exception caught in main: " << e.what() << std::endl;
     }
