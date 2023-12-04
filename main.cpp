@@ -2,8 +2,8 @@
 
 #include "MapNode.hpp"
 //#include "osmium.h"
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp>
+//#include <boost/property_tree/ptree.hpp>
+//#include <boost/property_tree/xml_parser.hpp>
 
 /**
  * Parse the map data from OSM file to a txt file first.
@@ -197,8 +197,8 @@ void getLength(){
 
 int main() {
     try {
-        // fileRead();
-        matchQuery();
+         fileRead();
+         matchQuery();
 //        getLength();
     } catch (const std::exception& e) {
         std::cerr << "Exception caught in main: " << e.what() << std::endl;

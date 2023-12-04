@@ -1,7 +1,20 @@
 # StreetMatch
 Matching bicycle track coordinate points on the Netherlands map 
 
-## Setup
+## Setup 
+You need Cpp20 to run the program. <br>
+You can check your Cpp version by running
+```
+g++ --version
+```
+If you are using Mac OS, you can install Cpp20 by using Homebrew
+```
+brew install gcc
+```
+See https://www.educative.io/edpresso/how-to-install-gcc-compiler-on-mac-osx for more information about installing gcc in Mac OS
+
+The steps below are
+ONLY NECESSARY IF parsing OSM data by libosmium
 1. Clone the repository
     ```
     git clone https://github.com/sorryfornow/StreetMatch.git
@@ -49,3 +62,37 @@ You can download the data from https://download.geofabrik.de/
     make
     ./StreetMatch
     ```
+
+## Usage
+The directory structure is as follows:
+```
+StreetMatch
+├── CMakeLists.txt
+├── Data
+│   └── maps
+│       └── NL2.osm
+│   └── query
+│       └── DataFile_2020_10_01_clean.csv
+│   └── result
+│       └── result.txt
+├── main.cpp
+├── MapNode.hpp
+├── README.md
+```
+The program will read the data from Data/maps/NL2.osm and Data/query/DataFile_2020_10_01_clean.csv and write the result to Data/result/result.txt
+<br> You can change the input and output file path in main.cpp
+<br> 
+You can use command line to run the program
+```
+./StreetMatch -m <map file path> -q <query file path> -o <output file path>
+```
+For example
+```
+./StreetMatch -m ../Data/maps/NL2.osm -q ../Data/query/DataFile_2020_10_01_clean.csv -o ../Data/result/result.txt
+```
+## Result
+The result will be written to Data/result/result.txt with the following format:
+```
+query_latitute, query_longitude, query_streetCount, matched_nodeId, matched_latitute, matched_longitude, matched_streetCount
+```
+and the distance from the query point to the nearest matched point can also be yielded if needed
