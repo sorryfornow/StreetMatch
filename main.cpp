@@ -16,6 +16,7 @@
 static constexpr std::string_view mapPath = "../Data/maps/NL2.osm";
 static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
 static constexpr std::string_view outputPath = "../Data/maps/output_file.txt";
+static constexpr std::string_view resultPath = "../Data/result/result.txt";
 
 void fileRead(){
     const auto startTime = std::chrono::high_resolution_clock::now();
@@ -165,7 +166,7 @@ void matchQuery() {
         }
     }
 
-    std::ofstream resultFile("../Data/result/result.txt");  // if not exist, create a new file
+    std::ofstream resultFile(resultPath.data());  // if not exist, create a new file
     // For each query point, find the nearest neighbor in the map data
     for (const auto& queryPoint : queryData) {
         try {
