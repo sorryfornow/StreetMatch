@@ -12,7 +12,6 @@
  * node_id, latitude, longitude, street_count
 **/
 
-
 static constexpr std::string_view mapPath = "../Data/maps/NL2.osm";
 static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
 static constexpr std::string_view outputPath = "../Data/maps/output_file.txt";
@@ -25,7 +24,7 @@ void fileRead(){
         std::cerr << "error open\n" << std::endl;
     }
 
-    std::ofstream outputFile("../Data/maps/output_file.txt");
+    std::ofstream outputFile(outputPath.data());
     // if not exist, create a new file
 
     std::string line;
