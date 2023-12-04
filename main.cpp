@@ -165,7 +165,7 @@ void matchQuery() {
         }
     }
 
-    std::ofstream resultFile("../Data/result/result.txt");
+    std::ofstream resultFile("../Data/result/result.txt");  // if not exist, create a new file
     // For each query point, find the nearest neighbor in the map data
     for (const auto& queryPoint : queryData) {
         try {
@@ -183,14 +183,25 @@ void matchQuery() {
     std::cout << "Running time: " << elapsed.count()/1000 << " seconds." << std::endl;
 }
 
+void getLength(){
+    // count the length of the mapFile
+    std::ifstream file(outputPath.data());
+    std::string line;
+    int count = 0;
+    while (std::getline(file, line)) {
+        count++;
+    }
+    std::cout << "The length of the mapFile is: " << count << std::endl;
+}
+
 int main() {
     try {
-        fileRead();
+        // fileRead();
         matchQuery();
+//        getLength();
     } catch (const std::exception& e) {
         std::cerr << "Exception caught in main: " << e.what() << std::endl;
     }
-
 
     return 0;
 }
