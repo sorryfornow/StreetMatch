@@ -185,7 +185,7 @@ void matchQuery() {
 
 int main() {
     try {
-//        fileRead();
+        fileRead();
         matchQuery();
     } catch (const std::exception& e) {
         std::cerr << "Exception caught in main: " << e.what() << std::endl;
