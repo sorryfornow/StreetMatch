@@ -133,7 +133,7 @@ void matchQuery() {
 
     while (std::getline(file, line)) {
         auto tokens = split(line, ','); // comma as delimiter
-        if (tokens.size() >= 4) {
+        if (tokens.size() >= 4) [[likely]]{
             try {
                 long id = std::stol(tokens[0]);
                 double lat = std::stod(tokens[1]);
@@ -172,7 +172,7 @@ void matchQuery() {
 
     std::ofstream resultFile(resultPath.data());  // if not exist, create a new file
     // if resultPath is .csv file, add header
-    if (endsWith(resultPath, ".csv"))
+    if (endsWith(resultPath, ".csv")) [[likely]]
         resultFile << "latitude,longitude,trip_id,nearest_node,nearest_node_latitude,nearest_node_longitude" << std::endl;
 
     // For each query point, find the nearest neighbor in the map data
@@ -181,7 +181,8 @@ void matchQuery() {
         resultFile << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount()
                    << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon()
                    << std::endl;
-//            std::cout << "Nearest to (" << queryPoint.getLat() << ", " << queryPoint.getLon() << ") is Node ID " << nearest.getId() << std::endl;
+//            std::cout << "Nearest to (" << queryPoint.getLat() << ", " << queryPoint.getLon() << ") is Node ID "
+//                      << nearest.getId() << std::endl;
     }
     qfile.close();
     const auto endTime = std::chrono::high_resolution_clock::now();
@@ -190,7 +191,7 @@ void matchQuery() {
     std::cout << "Running time: " << elapsed.count()/1000 << " seconds." << std::endl;
 }
 
-void getLength(){
+[[maybe_unused]]void getLength(){
     // count the length of the mapFile
     std::ifstream file(outputPath.data());
     std::string line;
