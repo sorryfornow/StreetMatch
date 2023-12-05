@@ -13,9 +13,10 @@
 **/
 
 static constexpr std::string_view mapPath = "../Data/maps/NL2.osm";
-static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
+//static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
+static constexpr std::string_view queryPath = "../Data/query/query_test.csv";
 static constexpr std::string_view outputPath = "../Data/maps/output_file.txt";
-static constexpr std::string_view resultPath = "../Data/result/result.txt";
+static constexpr std::string_view resultPath = "../Data/result/result_test.csv";
 
 void fileRead(){
     const auto startTime = std::chrono::high_resolution_clock::now();
@@ -178,8 +179,14 @@ void matchQuery() {
     // For each query point, find the nearest neighbor in the map data
     for (const auto& queryPoint : queryData) {
         StreetMatch::MapNode nearest = tree.nearestNeighbor(queryPoint);
-        resultFile << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount()
-                   << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon()
+//        std::cout << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount()
+//                  << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon()
+//                  << std::endl;
+//        resultFile << std::fixed << std::setprecision(12) << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount()
+//                   << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon()
+//                   << std::endl;
+        resultFile << std::to_string(queryPoint.getLat()) << ',' << std::to_string(queryPoint.getLon()) << ',' << std::to_string(queryPoint.getStreetCount())
+                   << ',' << nearest.getId() << ',' << std::to_string(nearest.getLat()) << ',' << std::to_string(nearest.getLon())
                    << std::endl;
 //            std::cout << "Nearest to (" << queryPoint.getLat() << ", " << queryPoint.getLon() << ") is Node ID "
 //                      << nearest.getId() << std::endl;
@@ -204,7 +211,7 @@ void matchQuery() {
 
 int main() {
     try {
-         fileRead();
+//         fileRead();
          matchQuery();
 //        getLength();
     } catch (const std::exception& e) {
