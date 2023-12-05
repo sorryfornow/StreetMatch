@@ -119,6 +119,11 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
     return tokens;
 }
 
+bool endsWith(std::string_view str, std::string_view suffix) {
+    return str.size() >= suffix.size() &&
+           str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 void matchQuery() {
     const auto startTime = std::chrono::high_resolution_clock::now();
     // Load map data from a file
@@ -127,7 +132,7 @@ void matchQuery() {
     std::string line;
 
     while (std::getline(file, line)) {
-        auto tokens = split(line, ','); // Space as delimiter
+        auto tokens = split(line, ','); // comma as delimiter
         if (tokens.size() >= 4) {
             try {
                 long id = std::stol(tokens[0]);
@@ -166,15 +171,17 @@ void matchQuery() {
     }
 
     std::ofstream resultFile(resultPath.data());  // if not exist, create a new file
+    // if resultPath is .csv file, add header
+    if (endsWith(resultPath, ".csv"))
+        resultFile << "latitude,longitude,trip_id,nearest_node,nearest_node_latitude,nearest_node_longitude" << std::endl;
+
     // For each query point, find the nearest neighbor in the map data
     for (const auto& queryPoint : queryData) {
-        try {
-            StreetMatch::MapNode nearest = tree.nearestNeighbor(queryPoint);
-            resultFile << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount() << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon() << ',' << nearest.getStreetCount() << std::endl;
+        StreetMatch::MapNode nearest = tree.nearestNeighbor(queryPoint);
+        resultFile << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount()
+                   << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon()
+                   << std::endl;
 //            std::cout << "Nearest to (" << queryPoint.getLat() << ", " << queryPoint.getLon() << ") is Node ID " << nearest.getId() << std::endl;
-        } catch (const std::runtime_error& e) {
-            std::cerr << "Error: " << e.what() << std::endl;
-        }
     }
     qfile.close();
     const auto endTime = std::chrono::high_resolution_clock::now();
