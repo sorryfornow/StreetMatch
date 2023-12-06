@@ -13,10 +13,10 @@
 **/
 
 static constexpr std::string_view mapPath = "../Data/maps/NL2.osm";
-//static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
-static constexpr std::string_view queryPath = "../Data/query/query_test.csv";
+static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
+//static constexpr std::string_view queryPath = "../Data/query/query_test.csv";
 static constexpr std::string_view outputPath = "../Data/maps/output_file.txt";
-static constexpr std::string_view resultPath = "../Data/result/result_test.csv";
+static constexpr std::string_view resultPath = "../Data/result/result2.csv";
 
 void fileRead(){
     const auto startTime = std::chrono::high_resolution_clock::now();
@@ -126,7 +126,7 @@ bool endsWith(std::string_view str, std::string_view suffix) {
 }
 
 void matchQuery() {
-    const auto startTime = std::chrono::high_resolution_clock::now();
+
     // Load map data from a file
     std::vector<StreetMatch::MapNode> mapData;
     std::ifstream file(outputPath.data());
@@ -137,8 +137,8 @@ void matchQuery() {
         if (tokens.size() >= 4) [[likely]]{
             try {
                 long id = std::stol(tokens[0]);
-                double lat = std::stod(tokens[1]);
-                double lon = std::stod(tokens[2]);
+                std::string lat = tokens[1];
+                std::string lon = tokens[2];
                 int street_count = std::stoi(tokens[3]);
                 mapData.emplace_back(id, lat, lon, street_count);
             } catch (const std::invalid_argument& e) {
@@ -159,37 +159,45 @@ void matchQuery() {
     std::vector<StreetMatch::MapNode> queryData;
     std::ifstream qfile(queryPath.data());
     line.clear();
-    std::size_t queryCount = 0;
+
     while (std::getline(qfile, line)) {
         auto tokens = split(line, ';'); // Semicolon as delimiter
         if (tokens.size() >= 3) {
-            double lat = std::stod(tokens[0]);
-            double lon = std::stod(tokens[1]);
+            std::string lat = tokens[0];
+            std::string lon = tokens[1];
             int sCount = std::stoi(tokens[2]);
             queryData.emplace_back(0, lat, lon, sCount);
-            queryCount++;
+
         }
     }
 
+    std::cout<< "The size of the queryData is: " << queryData.size() << std::endl;
+    const auto startTime = std::chrono::high_resolution_clock::now();
     std::ofstream resultFile(resultPath.data());  // if not exist, create a new file
     // if resultPath is .csv file, add header
     if (endsWith(resultPath, ".csv")) [[likely]]
         resultFile << "latitude,longitude,trip_id,nearest_node,nearest_node_latitude,nearest_node_longitude" << std::endl;
 
     // For each query point, find the nearest neighbor in the map data
+    std::size_t queryCount = 0;
     for (const auto& queryPoint : queryData) {
         StreetMatch::MapNode nearest = tree.nearestNeighbor(queryPoint);
-//        std::cout << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount()
-//                  << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon()
-//                  << std::endl;
+
 //        resultFile << std::fixed << std::setprecision(12) << queryPoint.getLat() << ',' << queryPoint.getLon() << ',' << queryPoint.getStreetCount()
 //                   << ',' << nearest.getId() << ',' << nearest.getLat() << ',' << nearest.getLon()
 //                   << std::endl;
-        resultFile << std::to_string(queryPoint.getLat()) << ',' << std::to_string(queryPoint.getLon()) << ',' << std::to_string(queryPoint.getStreetCount())
-                   << ',' << nearest.getId() << ',' << std::to_string(nearest.getLat()) << ',' << std::to_string(nearest.getLon())
+        resultFile << queryPoint.getLatString() << ',' << queryPoint.getLonString() << ',' << queryPoint.getStreetCount()
+                   << ',' << nearest.getId() << ',' << nearest.getLatString() << ',' << nearest.getLonString()
                    << std::endl;
 //            std::cout << "Nearest to (" << queryPoint.getLat() << ", " << queryPoint.getLon() << ") is Node ID "
 //                      << nearest.getId() << std::endl;
+        queryCount++;
+        if (queryCount % 1000 == 0){
+            const auto curTime = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> elapsed = curTime - startTime; // time diff
+            std::cout << "Processed " << queryCount << " queries. Time elapsed: " << elapsed.count()/1000 << " seconds." << std::endl;
+        }
+
     }
     qfile.close();
     const auto endTime = std::chrono::high_resolution_clock::now();
