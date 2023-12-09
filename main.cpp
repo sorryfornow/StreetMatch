@@ -16,7 +16,7 @@ static constexpr std::string_view mapPath = "../Data/maps/NL2.osm";
 static constexpr std::string_view queryPath = "../Data/query/DataFile_2020_10_01_clean.csv";
 //static constexpr std::string_view queryPath = "../Data/query/query_test.csv";
 static constexpr std::string_view outputPath = "../Data/maps/output_file.txt";
-static constexpr std::string_view resultPath = "../Data/result/result2.csv";
+static constexpr std::string_view resultPath = "../Data/result/result_L2NL_km_r.csv";
 
 void fileRead(){
     const auto startTime = std::chrono::high_resolution_clock::now();
@@ -179,7 +179,7 @@ void matchQuery() {
         resultFile << "latitude,longitude,trip_id,nearest_node,nearest_node_latitude,nearest_node_longitude" << std::endl;
 
     // For each query point, find the nearest neighbor in the map data
-    std::size_t queryCount = 0;
+    [[maybe_unused]] std::size_t queryCount = 0;
     for (const auto& queryPoint : queryData) {
         StreetMatch::MapNode nearest = tree.nearestNeighbor(queryPoint);
 
@@ -191,12 +191,12 @@ void matchQuery() {
                    << std::endl;
 //            std::cout << "Nearest to (" << queryPoint.getLat() << ", " << queryPoint.getLon() << ") is Node ID "
 //                      << nearest.getId() << std::endl;
-        queryCount++;
-        if (queryCount % 1000 == 0){
-            const auto curTime = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> elapsed = curTime - startTime; // time diff
-            std::cout << "Processed " << queryCount << " queries. Time elapsed: " << elapsed.count()/1000 << " seconds." << std::endl;
-        }
+//        queryCount++;
+//        if (queryCount % 1000 == 0){
+//            const auto curTime = std::chrono::high_resolution_clock::now();
+//            std::chrono::duration<double, std::milli> elapsed = curTime - startTime; // time diff
+//            std::cout << "Processed " << queryCount << " queries. Time elapsed: " << elapsed.count()/1000 << " seconds." << std::endl;
+//        }
 
     }
     qfile.close();

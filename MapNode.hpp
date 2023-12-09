@@ -18,8 +18,31 @@
 #include <compare>
 #include <algorithm>
 #include <iomanip>
+#include <stack>
+#include <utility>
 
 namespace StreetMatch {
+
+    // 荷兰境内的纬度平均值约为 52°
+    static constexpr double avgLatRad = 52.0 * (M_PI / 180.0);
+    static constexpr double avgLonRad = 5.0 * (M_PI / 180.0);
+    // 每度纬度和经度在荷兰地区大约对应的米数
+    static constexpr double metersPerLat = 111132.92; // 纬度每度大约对应的米数
+    // static constexpr double metersPerLon = 111412.84 * std::cos(avgLatRad); // 经度每度大约对应的米数
+    static constexpr double metersPerLon = 111412.84 * 0.61566; // 使用 52° 的余弦近似值
+    // 每度纬度和经度在荷兰地区大约对应的km
+    static constexpr double kmPerLat = 111.13292; // 纬度每度大约对应的km
+    static constexpr double kmPerLon = 111.41284 * 0.61566; // 使用 52° 的余弦近似值
+    // 每度纬度和经度在荷兰地区大约对应的millmeters
+    static constexpr double millmetersPerLat = .11113292;
+    static constexpr double millmetersPerLon = .11141284 * 0.61566; // 使用 52° 的余弦近似值
+    // 每度纬度和经度在荷兰地区大约对应的relative millmeters
+    static constexpr double relativeMillmetersPerLat = 11.113292;
+    static constexpr double relativeMillmetersPerLon = 11.141284 * 0.61566; // 使用 52° 的余弦近似值
+
+    [[nodiscard]] static double toRadians(double degree) {
+        return degree * (M_PI / 180.0);
+    }
 
     class MapNode {
     private:
@@ -52,9 +75,12 @@ namespace StreetMatch {
 //                : id(id), latitude(std::to_string(lat)), longitude(std::to_string(lon)), street_count(trip_id) {}
         explicit MapNode(long id, std::string lat, std::string lon, int trip_id)
                 : id(id), latitude(std::move(lat)), longitude(std::move(lon)), street_count(trip_id) {
-            latRad = toRadians(std::stod(this->latitude));
-            lonRad = toRadians(std::stod(this->longitude));
+//            latRad = toRadians(std::stod(this->latitude));
+//            lonRad = toRadians(std::stod(this->longitude));
+            latRad = std::stod(this->latitude);
+            lonRad = std::stod(this->longitude);
         }
+
         // Getters
         [[nodiscard]] long getId() const { return this->id; }
         [[nodiscard]] double getLon() const { return std::stod(this->longitude); }
@@ -66,18 +92,22 @@ namespace StreetMatch {
         [[nodiscard]] double getLonRad() const { return this->lonRad; }
 
         [[nodiscard]] double distanceSquared(const MapNode& other) const {
-            // L2 euclidean distance
+            // L2 euclidean
             double lat_diff = std::stod(latitude) - std::stod(other.latitude);
             double lon_diff = std::stod(longitude) - std::stod(other.longitude);
             return lat_diff * lat_diff + lon_diff * lon_diff;
         }
 
-        [[nodiscard]] static double toRadians(double degree) {
-            return degree * (M_PI / 180.0);
+        [[nodiscard]] double approximateDistanceNL(const MapNode& other) const {
+
+            double dLatMeters = (other.latRad - latRad) * StreetMatch::relativeMillmetersPerLat;
+            double dLonMeters = (other.lonRad - lonRad) * StreetMatch::relativeMillmetersPerLon;
+
+            return dLatMeters * dLatMeters + dLonMeters * dLonMeters;
         }
 
-        [[nodiscard]] double haversineDistance(const  MapNode& other) const {
-            // Haversine distance
+        [[nodiscard]] double haversineDistance(const MapNode& other) const {
+            // Haversine
             static constexpr double R = 6371.0;  // Earth's radius in kilometers
 
             double dLat = other.latRad - latRad;
@@ -92,6 +122,30 @@ namespace StreetMatch {
 
             return R * 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
         }
+
+        [[nodiscard]] double relativeHaversineDistance(const MapNode& other) const {
+            double dLat = other.latRad - latRad;
+            double dLon = other.lonRad - lonRad;
+
+            double sin_dLat_half = std::sin(dLat / 2);
+            double sin_dLon_half = std::sin(dLon / 2);
+
+            // 'a' value from Haversine formula
+            return sin_dLat_half * sin_dLat_half +
+                   std::cos(latRad) * std::cos(other.latRad) *
+                   sin_dLon_half * sin_dLon_half;
+        }
+
+        [[nodiscard]] double approximateDistance(const MapNode& other) const {
+            double dLat = other.latRad - latRad;
+            double dLon = other.lonRad - lonRad;
+            double latMid = (latRad + other.latRad) / 2;
+
+            return dLat * dLat + std::cos(latMid) * std::cos(latMid) * dLon * dLon;
+        }
+
+
+
 
         // Stream output operator
         friend std::ostream &operator<<(std::ostream &os, const MapNode &node) {
@@ -129,6 +183,7 @@ namespace StreetMatch {
         MapNode nearestNeighbor(const MapNode & queryPoint) {
             std::optional<MapNode> nearest;
             double nearestDist = std::numeric_limits<double>::max();
+//            findNearestNeighbor(root, queryPoint, nearest, nearestDist);
             findNearestNeighbor(root, queryPoint, 0, nearest, nearestDist);
             if (nearest.has_value()) {
                 return nearest.value();
@@ -154,38 +209,91 @@ namespace StreetMatch {
             }
         }
 
-        void findNearestNeighbor(std::unique_ptr<KDTreeNode>& node, const MapNode& queryPoint, unsigned depth, std::optional<MapNode>& nearest, double& nearestDist) {
+//        static void findNearestNeighbor(std::unique_ptr<KDTreeNode>& root, const MapNode& queryPoint, std::optional<MapNode>& nearest, double& nearestDist) {
+//            if (!root) return;
+//
+//            std::stack<std::pair<std::unique_ptr<KDTreeNode>&, unsigned>> stack;
+//            stack.emplace(root, 0);
+//
+//            while (!stack.empty()) {
+//                auto& [node, depth] = stack.top();
+//                stack.pop();
+//
+//                if (!node) continue;
+//
+//                // Same logic as before
+//                unsigned axis = depth % 2; // 0 for latitude, 1 for longitude
+//                double axisDist = (axis == 0) ? std::abs(queryPoint.getLatRad() - node->point.getLatRad())
+//                                              : std::abs(queryPoint.getLonRad() - node->point.getLonRad());
+//
+//                if (axisDist < nearestDist) {
+//                    // double dist = node->point.distanceSquared(queryPoint);
+//                    // double dist = node->point.relativeHaversineDistance(queryPoint);
+//                    double dist = node->point.approximateDistanceNL(queryPoint);
+//                    if (dist < nearestDist) {
+//                        nearestDist = dist;
+//                        nearest = node->point;
+//                    }
+//                }
+//
+//                bool goLeft = (axis == 0) ? (queryPoint.getLatRad() < node->point.getLatRad())
+//                                          : (queryPoint.getLonRad() < node->point.getLonRad());
+//
+//                if (goLeft) {
+//                    if (node->right) stack.emplace(node->right, depth + 1);
+//                    if (node->left) stack.emplace(node->left, depth + 1);
+//                } else {
+//                    if (node->left) stack.emplace(node->left, depth + 1);
+//                    if (node->right) stack.emplace(node->right, depth + 1);
+//                }
+//            }
+//        }
+//        void findNearestNeighbor(std::unique_ptr<KDTreeNode>& node, const MapNode & queryPoint, unsigned depth, std::optional<MapNode>& nearest, double& nearestDist) {
+//            if (!node) return;
+//
+//            // double dist = node->point.haversineDistance(queryPoint);
+//            // double dist = node->point.distanceSquared(queryPoint);
+//            // double dist = node->point.relativeHaversineDistance(queryPoint);
+//            double dist = node->point.approximateDistanceNL(queryPoint);
+//            if (dist < nearestDist) {
+//                nearestDist = dist;
+//                nearest = node->point;
+//            }
+//
+//            unsigned axis = depth % 2; // 0 for latitude, 1 for longitude
+//            bool goLeft = (axis == 0 && queryPoint.getLatRad() < node->point.getLatRad()) || (axis == 1 && queryPoint.getLonRad() < node->point.getLonRad());
+//            std::unique_ptr<KDTreeNode>& first = goLeft ? node->left : node->right;
+//            std::unique_ptr<KDTreeNode>& second = first == node->left ? node->right : node->left;
+//
+//            // Search down the tree
+//            findNearestNeighbor(first, queryPoint, depth + 1, nearest, nearestDist);
+//
+//            // Check if we need to search the other branch
+//            double axisDist = (axis == 0 ? queryPoint.getLatRad() - node->point.getLatRad() : queryPoint.getLonRad() - node->point.getLonRad());
+//            if (axisDist * axisDist < nearestDist) {
+//                findNearestNeighbor(second, queryPoint, depth + 1, nearest, nearestDist);
+//            }
+//        }
+        void findNearestNeighbor(std::unique_ptr<KDTreeNode>& node, const MapNode & queryPoint, unsigned depth, std::optional<MapNode>& nearest, double& nearestDist) {
             if (!node) return;
 
-            // Check potential improvement before calculating Haversine distance
-            unsigned axis = depth % 2; // 0 for latitude, 1 for longitude
-            double axisDist = (axis == 0) ? std::abs(queryPoint.getLatRad() - node->point.getLatRad())
-                                          : std::abs(queryPoint.getLonRad() - node->point.getLonRad());
-
-            if (axisDist < nearestDist) {
-                double dist = node->point.haversineDistance(queryPoint);
-//                double dist = node->point.distanceSquared(queryPoint);
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearest = node->point;
-                }
+            double dist = node->point.approximateDistanceNL(queryPoint);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = node->point;
             }
 
-            bool goLeft = (axis == 0) ? (queryPoint.getLatRad() < node->point.getLatRad())
-                                      : (queryPoint.getLonRad() < node->point.getLonRad());
+            unsigned axis = depth % 2;
+            std::unique_ptr<KDTreeNode>& first = (axis == 0 && queryPoint.getLat() < node->point.getLat()) || (axis == 1 && queryPoint.getLon() < node->point.getLon()) ? node->left : node->right;
+            std::unique_ptr<KDTreeNode>& second = first == node->left ? node->right : node->left;
 
-            auto& first = goLeft ? node->left : node->right;
-            auto& second = goLeft ? node->right : node->left;
-
-            // Search down the tree
             findNearestNeighbor(first, queryPoint, depth + 1, nearest, nearestDist);
 
-            // Check if we need to search the other branch
+            double axisDist = axis == 0 ? queryPoint.getLat() - node->point.getLat() : queryPoint.getLon() - node->point.getLon();
             if (axisDist * axisDist < nearestDist) {
                 findNearestNeighbor(second, queryPoint, depth + 1, nearest, nearestDist);
             }
         }
-
 
     };
 
