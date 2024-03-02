@@ -16,7 +16,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 
 # Add your executable
-add_executable(StreetMatch main.cpp osmium.h MapNode.hpp)
+add_executable(StreetMatch main.cpp osmium.h MapNode.hpp
+        Paths.h
+        Paths.h)
 
 # Link with zlib, Bzip2, and Expat
 #find_package(ZLIB REQUIRED)
